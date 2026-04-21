@@ -35,18 +35,18 @@ The repository isolates critical paths into three completely isolated subsystems
 ```mermaid
 graph TD;
     subgraph Ground Station
-        MC[Next.js Mission Control]
+        MC["Next.js Mission Control"]
     end
 
     subgraph Orbital Node
-        MC_Core[Rust Supervisor (mission-core)]
-        MA_AI[Python AI Sandbox (mission-ai)]
-        Vault[(Secure Dual USB Storage)]
+        MC_Core["Rust Supervisor (mission-core)"]
+        MA_AI["Python AI Sandbox (mission-ai)"]
+        Vault[("Secure Dual USB Storage")]
     end
 
-    MA_AI -- IPC Airgap (UDS) --> MC_Core
-    MC_Core -- Atomic Storage --> Vault
-    MC_Core <== DTN (Eclipse Zenoh w/ QUIC) ==> MC
+    MA_AI -->|"IPC Airgap (UDS)"| MC_Core
+    MC_Core -->|"Atomic Storage"| Vault
+    MC_Core <==>|"DTN (Eclipse Zenoh w/ QUIC)"| MC
 ```
 
 ### Directory Structure
