@@ -109,4 +109,4 @@ python3 main.py
 
 ## 📜 License
 
-Internal Proprietary Use Only - SpaceOrb Team
+This project is licensed under the [MIT License](LICENSE).
