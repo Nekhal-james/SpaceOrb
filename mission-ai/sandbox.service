@@ -1,0 +1,68 @@
+# SpaceOrb V7.6 — AI Sandbox Systemd Unit
+# Reference: SPACEORB_CORE_SPEC.txt §3.2
+#
+# Install: cp sandbox.service /etc/systemd/system/mission-ai.service
+# Enable:  systemctl daemon-reload && systemctl enable --now mission-ai
+
+[Unit]
+Description=SpaceOrb V7.6 AI Sandbox (YOLOv8 Inference)
+After=network.target mission-core.service
+Requires=mission-core.service
+Documentation=https://github.com/spaceorb/mission-ai
+
+[Service]
+Type=simple
+User=mission-ai
+Group=mission-ai
+WorkingDirectory=/opt/spaceorb/mission-ai
+
+# Python Flask entry point
+ExecStart=/opt/spaceorb/mission-ai/venv/bin/python main.py
+
+# --- Kernel-Level Resource Sandboxing ---
+
+# Memory: Hard cap at 4GB (per spec §3.2)
+MemoryMax=4G
+MemoryHigh=3G
+
+# CPU: Allow up to 200% (2 cores) under Solar power
+# The Rust power governor will dynamically adjust this to 5% during Eclipse
+CPUQuota=200%
+
+# Process control: kill entire cgroup on stop/failure
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# --- Security Hardening ---
+
+# Private tmp namespace
+PrivateTmp=true
+# Prevent privilege escalation
+NoNewPrivileges=true
+# Read-only filesystem except for specific paths
+ProtectSystem=strict
+ReadWritePaths=/mnt/ram_shield /tmp/mission.sock
+# No network access (IPC only via UDS)
+IPAddressDeny=any
+# Restrict capabilities
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# --- Restart Policy ---
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# --- Environment ---
+Environment=RAM_SHIELD_PATH=/mnt/ram_shield
+Environment=IPC_SOCKET_PATH=/tmp/mission.sock
+Environment=YOLO_MODEL_PATH=/opt/spaceorb/mission-ai/yolov8n.pt
+Environment=INGEST_PORT=5050
+Environment=LOG_LEVEL=INFO
+Environment=RAM_SHIELD_LIMIT_GB=1.0
+Environment=RAM_SHIELD_BACKPRESSURE_PERCENT=80
+
+[Install]
+WantedBy=multi-user.target

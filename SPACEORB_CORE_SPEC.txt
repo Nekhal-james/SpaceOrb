@@ -1,0 +1,99 @@
+﻿________________
+SPACEORB V7.6: MASTER SYSTEM SPECIFICATION
+
+1. PRODUCT REQUIREMENTS DOCUMENT (PRD)
+
+Project Goal: Build an autonomous, aerospace-grade data management "brain" for a Space Data Center (Question 7).
+Core Value Proposition: Deterministic survival of telemetry and AI-processed data in environments with zero human intervention, random power failures, and 90-minute communication blackouts.
+Key Functional Requirements
+* Secure Vaulting: All data must be encrypted (AES-256-GCM), compressed (Zstd), and stored with hardware-level crash consistency.
+* Dynamic Prioritization: Implement the $P_{Score}$ algorithm to ensure high-value anomalies jump the transmission queue.
+* Sandboxed Compute: Execute AI inference (YOLOv8) in a kernel-hardened container to prevent rogue scripts from crashing the node.
+* DTN Networking: Use Delay-Tolerant Networking to handle 10-minute ground-station passes and resume interrupted transfers.
+* Power Awareness: Automatically throttle non-essential AI workloads when battery levels (simulated) drop below 30%.
+
+Critical Architectural Guardrails
+
+The agent must strictly adhere to these directives from SPACEORB_CORE_SPEC.txt to ensure hardware-level crash consistency on the Pi 5:The "Vault" Rule: Every file write must follow the sequence: Stage $\to$ Process $\to$ Pending $\to$ Hardware Sync (fsync) $\to$ Commit (rename) $\to$ Directory Sync (sync_all).Memory Budgeting: Non-negotiable limits for an 8GB ceiling: 1GB for tmpfs, 4GB for the AI Sandbox, and 3GB reserved for the OS and Supervisor.The IPC Airgap: The supervisor must bind /tmp/mission.sock and immediately execute chmod 0o666 to bridge the root/user boundary.Power Awareness: The system must automatically throttle AI workloads to CPUQuota=5% when simulated battery levels (SoC) drop below 30%.
+
+________________
+
+2. THE TECH STACK
+
+Component
+	Technology
+	Rationale
+	Root Supervisor
+	Rust (Tokio)
+	Memory safety, zero-cost abstractions, and high-performance async I/O.
+	AI Sandbox
+	Python (Ultralytics)
+	Rapid deployment of YOLOv8 models; isolated via Linux cgroups.
+	Networking
+	Eclipse Zenoh (QUIC)
+	Native DTN support with RocksDB persistence for interrupted links.
+	Storage
+	Dual USB 3.1 (ext4)
+	Application-level RAID 1; journaling disabled to prevent metadata corruption.
+	Frontend
+	Next.js (Production)
+	High-signal WebSockets dashboard with binary proxying capabilities.
+	Hardening
+	systemd + cgroups
+	Kernel-level resource limits (CPU/RAM) and zombie process annihilation.
+	________________
+
+3. ARCHITECTURAL DIRECTIVES (THE "ZERO-ANOMALY" RULES)
+
+3.1 Atomic Storage Pipeline (The "Vault" Rule)
+Any file write to the persistent storage must follow this exact sequence to survive a power pull at any microsecond:
+1. Stage: Write to /mnt/ram_shield (tmpfs).
+2. Process: Compress $\to$ Encrypt $\to$ Hash (SHA-256).
+3. Pending: Write to both USBs as .pending files.
+4. Hardware Sync: Call fsync() on the file handles.
+5. Commit: Atomic rename() to .sealed.
+6. Directory Sync: Call sync_all() on the parent directory to lock the filename change into the hardware.
+3.2 Memory & Sandbox Budget (8GB Pi 5 Ceiling)
+To avoid Out-Of-Memory (OOM) panics, the following limits are non-negotiable:
+* RAM Shield (tmpfs): 1GB (Capped at /mnt/ram_shield).
+* AI Sandbox (cgroup): 4GB Max (MemoryMax=4G).
+* Supervisor/OS/Dashboard: 3GB Reserved.
+3.3 The IPC Airgap (Root vs. User)
+* The Rust supervisor (Root) binds /tmp/mission.sock.
+* It must execute chmod 0o666 on the socket immediately after binding.
+* The Python Sandbox (User) connects to provide inference results.
+* Timeout: Rust must wrap UDS reads in a 2500ms timeout (extending to 20s during low-power mode).
+________________
+4. ALGORITHMIC SCHEMAS
+4.1 Priority Scoring ($P_{Score}$)
+The transmission queue is a Binary Heap sorted by:
+
+
+$$P_{Score} = (W_c \cdot C) + (W_a \cdot T_{wait}) - (W_s \cdot S_{mb})$$
+* C (Criticality): 1000 for Anomaly, 1 for Routine.
+* T (Wait): Seconds elapsed since ingest.
+* S (Size): Payload size in MB.
+4.2 Power Governor Logic
+* State 1 (Solar): SoC $> 50\% \to$ AI CPUQuota=200%.
+* State 2 (Eclipse): SoC $< 30\% \to$ AI CPUQuota=5%.
+* Mechanism: Rust invokes systemctl set-property mission-ai.service CPUQuota=X% via DBus.
+________________
+5. REPOSITORY STRUCTURE
+
+
+/
+├── mission-core/          # Rust Root Supervisor
+│   ├── src/vault.rs       # Atomic I/O & Merkle logic
+│   ├── src/priority.rs    # P_Score & Eviction logic
+│   └── src/orbit.rs       # Virtual Epoch & SGP4
+├── mission-ai/            # Python Sandbox
+│   ├── main.py            # Flask Ingest & YOLOv8
+│   └── sandbox.service    # Systemd unit (KillMode=control-group)
+├── mission-control/       # Next.js Ground Station
+└── scripts/               # Phase 0 setup (RTC, fstab, journaling)
+
+________________
+
+Project Structure Overview
+
+The repository is organized into three distinct, isolated subsystems to maintain the "Zero-Anomaly" architecture:DirectoryResponsibilityPrimary Stackmission-core/Indestructible Root Supervisor; handles the Vault and DTN. Rust (Tokio) mission-ai/Sandboxed Compute; runs YOLOv8 vision inference. Python (Ultralytics) mission-control/Mission Control; high-signal dashboard and proxy. Next.js (Production) scripts/OS Hardening; configures RTC, fstab, and journaling. Bash / Systemd 

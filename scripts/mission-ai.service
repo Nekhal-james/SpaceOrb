@@ -1,0 +1,49 @@
+# SpaceOrb V7.6 — Production AI Sandbox Systemd Unit
+# This is the copy installed to /etc/systemd/system/mission-ai.service
+# Reference: SPACEORB_CORE_SPEC.txt §3.2
+
+[Unit]
+Description=SpaceOrb V7.6 AI Sandbox (YOLOv8 Inference Engine)
+After=network.target
+Documentation=https://github.com/spaceorb/mission-ai
+
+[Service]
+Type=simple
+User=mission-ai
+Group=mission-ai
+WorkingDirectory=/opt/spaceorb/mission-ai
+
+ExecStart=/opt/spaceorb/mission-ai/venv/bin/python main.py
+
+# --- Kernel-Level Sandboxing (SPACEORB_CORE_SPEC §3.2) ---
+MemoryMax=4G
+MemoryHigh=3G
+CPUQuota=200%
+KillMode=control-group
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+# --- Security ---
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/mnt/ram_shield /tmp/mission.sock
+IPAddressDeny=any
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+# --- Restart ---
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+# --- Environment ---
+Environment=RAM_SHIELD_PATH=/mnt/ram_shield
+Environment=IPC_SOCKET_PATH=/tmp/mission.sock
+Environment=YOLO_MODEL_PATH=/opt/spaceorb/mission-ai/yolov8n.pt
+Environment=INGEST_PORT=5050
+Environment=LOG_LEVEL=INFO
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --orb-bg: #0a0e1a;
+  --orb-surface: #111827;
+  --orb-border: #1f2937;
+  --orb-accent: #3b82f6;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--orb-bg);
+  color: #e5e7eb;
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--orb-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--orb-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #374151;
+}
+
+/* Red Alert overlay */
+.red-alert-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  border: 3px solid rgba(220, 38, 38, 0.8);
+  animation: red-alert-border 1s ease-in-out infinite;
+}
+
+@keyframes red-alert-border {
+  0%, 100% {
+    border-color: rgba(220, 38, 38, 0.3);
+    box-shadow: inset 0 0 60px rgba(220, 38, 38, 0.05);
+  }
+  50% {
+    border-color: rgba(220, 38, 38, 0.9);
+    box-shadow: inset 0 0 60px rgba(220, 38, 38, 0.15);
+  }
+}
+
+/* Grid background pattern */
+.grid-bg {
+  background-image:
+    linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
